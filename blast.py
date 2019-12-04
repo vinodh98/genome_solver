@@ -2,10 +2,18 @@ import requests
 import re
 import time
 
+# Initialize query parameters
+# Check the parameter list at https://ncbi.github.io/blast-cloud/dev/api.html
+Protein = 'YP_009160396.1'
+Domain_Filter = 'ENTREZ_QUERY=txid2[ORGN]'  # Bacteria
+# build the URL Submit request
+url_endpoint = 'https://blast.ncbi.nlm.nih.gov/Blast.cgi?'
+
+
 # ------- Auxiliary Routines and Classes -----------------
 # A simple routine that extracts an Attribute from a Context given the surrounding marking strings
 def extract_attribute(data, attribute):
-    print("Looking for the attribute:", attribute)
+    # print("Looking for the attribute:", attribute)
     for line in data.splitlines():
         if attribute in line:
             print(line)
@@ -16,21 +24,40 @@ def extract_attribute(data, attribute):
 
 # ------- End Auxiliary Routines and Classes -----------------
 
+# ------- Auxiliary Routines and Classes -----------------
+# A simple routine that checks the status of the given RID
+def check_request_status(requestid):
+    print("Checking status of RID:", requestid)
+    url_request = 'CMD=Get&FORMAT_OBJECT=SearchInfo&RID=' + rid
+    url_submit = url_endpoint + url_request
+    # Submit the request to the BLAST site
+    submit_request = requests.put(url_submit)
+
+    # Save the Submit result for troubleshooting
+    file_handle = open("query-status.html", "w")
+    file_handle.write(submit_request.text)
+    file_handle.close()
+
+    query_status = extract_attribute(submit_request.text, "Status=")
+    #print(query_status)
+    query_hits = extract_attribute(submit_request.text, "ThereAreHits=")
+    #print(query_hits)
+    return query_status, query_hits
+
+
+# ------- End Auxiliary Routines and Classes -----------------
+
+
 ###############
 # STEP 1
 ###############
-# Initialize query parameters
-# Check the parameter list at https://ncbi.github.io/blast-cloud/dev/api.html
-Protein = 'YP_009160396.1'
-Domain_Filter = 'ENTREZ_QUERY=txid2[ORGN]'  # Bacteria
-# build the URL Submit request
-URL_Endpoint = 'https://blast.ncbi.nlm.nih.gov/Blast.cgi?'
-URL_Request = 'QUERY=' + Protein + '&DATABASE=nr&PROGRAM=blastp&' + Domain_Filter + '&CMD=Put'
-URL_Submit = URL_Endpoint + URL_Request
-print(URL_Submit)
+
+url_request = 'QUERY=' + Protein + '&DATABASE=nr&PROGRAM=blastp&' + Domain_Filter + '&CMD=Put'
+url_submit = url_endpoint + url_request
+print(url_submit)
 
 # Submit the request to the BLAST site
-Submit_Request = requests.put(URL_Submit)
+Submit_Request = requests.put(url_submit)
 
 # Save the Submit result for troubleshooting
 f = open("query-submit.html", "w")
@@ -47,33 +74,23 @@ print(rtoe)
 ###############
 # https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Get&FORMAT_OBJECT=SearchInfo&RID=W8BRVRZW014
 
-Wait_for_blast_completion = int(rtoe)*60
-print("Ok going to sleep for ", Wait_for_blast_completion, " seconds or ", rtoe, "minutes")
-time.sleep(Wait_for_blast_completion)
-print("Ok I'm up, ready to check if the search is complete")
+while True:
+    Status, Hits = check_request_status(rid)
+    if Status == 'READY' and Hits == 'yes':
+        print("We got some hits yay ! ok will grab the JSON file")
+        break
+    else:
+        print("Will wait and try in 60 seconds")
+        #print("Will wait for 60 seconds and try the url again - https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Get&FORMAT_OBJECT=SearchInfo&RID=",rid)
+        time.sleep(60)
 
-URL_Request = 'CMD=Get&FORMAT_OBJECT=SearchInfo&RID='+rid
-URL_Submit = URL_Endpoint + URL_Request
-
-# Submit the request to the BLAST site
-Submit_Request = requests.put(URL_Submit)
+url_request = 'RESULTS_FILE=on&FORMAT_TYPE=JSON2_S&FORMAT_OBJECT=Alignment&CMD=Get&RID=' + rid
+Submit_JSONRequest = requests.put(url_endpoint + url_submit)
+#print(Submit_JSONRequest)
 
 # Save the Submit result for troubleshooting
-f = open("query-status.html", "w")
-f.write(Submit_Request.text)
-f.close()
+save_json_file_handle = open("results.json", "w")
+save_json_file_handle.write(Submit_JSONRequest.text)
+save_json_file_handle.close()
 
-query_status = extract_attribute(Submit_Request.text, "Status=")
-print(query_status)
-query_hits = extract_attribute(Submit_Request.text, "ThereAreHits=")
-print(query_hits)
-
-if query_status == 'READY' and query_hits == 'yes':
-    print("We got some hits yay ! ok will grab the JSON file")
-    # https://blast.ncbi.nlm.nih.gov/Blast.cgi?RESULTS_FILE=on&FORMAT_TYPE=JSON2_S&FORMAT_OBJECT=Alignment&CMD=Get&RID=W3NDU16Z015
-    URL_Request = 'RESULTS_FILE=on&FORMAT_TYPE=JSON2_S&FORMAT_OBJECT=Alignment&CMD=Get&RID=' + rid
-    Submit_JSONRequest = requests.put(URL_Endpoint+URL_Submit)
-    print(Submit_JSONRequest)
-
-else:
-    print("NCBI time projection is wrong! I give up:", URL_Submit)
+print("All Done")
