@@ -26,7 +26,34 @@
         - Revers the top hit
         - loop 
     - Learn and use JSON / XML parser
-    
+# Example output
+##
+## Forward Blast AZA18259.1 (Limit to Bacteria)
+##
+---------------------------------------
+Percentage 	Subject ID	E_Value
+---------------------------------------
+100.000 	 AZA18259.1 	 0.0
+94.540 	 WP_084828638.1 	 0.0 	*
+91.379 	 WP_111679482.1 	 0.0
+76.012 	 WP_155214194.1 	 0.0
+75.434 	 WP_155214166.1 	 0.0
+---------------------------------------
+The top hit =  WP_084828638.1
+
+##
+## Reverse Blast WP_084828638.1 (Limit to Viruses)
+##
+---------------------------------------
+Percentage 	Subject ID	E_Value
+---------------------------------------
+100.000 	 WP_084828638.1 	 0.0
+94.540 	 AZA18259.1 	 0.0 	*
+92.529 	 WP_111679482.1 	 0.0
+76.012 	 WP_155214194.1 	 0.0
+76.012 	 WP_155214166.1 	 0.0
+---------------------------------------
+The top hit =  AZA18259.1    
 ```
 ENTREZ_QUERY=txid2[ORGN]
 https://blast.ncbi.nlm.nih.gov/Blast.cgi?QUERY=YP_009160331.1&DATABASE=nr&PROGRAM=blastp&ENTREZ_QUERY=txid2[ORGN]&CMD=Put&FORMAT_TYPE=XML
