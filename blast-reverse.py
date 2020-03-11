@@ -6,7 +6,7 @@ import csv
 # Initialize query parameters
 # Check the parameter list at https://ncbi.github.io/blast-cloud/dev/api.html
 Protein = 'WP_084828638.1'
-Domain_Filter = 'ENTREZ_QUERY=txid2[ORGN]'  # Limit to Viruses
+Domain_Filter = 'ENTREZ_QUERY=txid10239[ORGN]'  # Limit to Viruses
 # build the URL Submit request
 url_endpoint = 'https://blast.ncbi.nlm.nih.gov/Blast.cgi?'
 
