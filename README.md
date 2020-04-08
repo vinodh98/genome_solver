@@ -1,31 +1,11 @@
-# Needed columns
-    Description	
-    Query Cover > 70%
-    &
-    E value < e^-50
-    Per. Ident
-    Accession
+# Steps to Run Blast
+1. Open google colab - https://colab.research.google.com/notebooks/welcome.ipynb
+2. Login with your gmail account to enable google drive access. We will use google drive to store and run our python script.
+3. Create the output and tmp directory.
+4. Create an input file with a list of accession numbers.
+5. Copy paste the "blast.py" file to colab and save it.
+6. Run blast
 
-# Forward blast the protein, limited to records that include only Bacteria (taxid:2)
-    - take the top hit (Accession #)
-    - save the top 10 (Accession #) to file
-        use the above conditions to filter dwon
-# Reverse blast the top hit, this time limited to records that include only Viruses (taxid:10239)
-    - take the top hit (Accession #)
-        Compare this value (Accession #) with the top hit in the forward blast
-            If they match then flag it as a "match"
-    - save the top 10 (Accession #) to file
-
-# TODO
-    - Create sub routines
-        - for check status
-        - for submit requst
-        - Get the result
-        - Parse the items
-        - Save the top 10 items
-        - Revers the top hit
-        - loop 
-    - Learn and use JSON / XML parser
 # Example output
 ### Forward Blast AZA18259.1 (Limit to Bacteria)
 | Percentage | Subject ID |E_Value|
@@ -51,7 +31,38 @@
 94.253|AZF92090.1|0.0|
 95.115|AYP29589.1|0.0|
 94.253|AYP30036.1|0.0|
-**The top hit =  YP_001686804.1**   
+**The top hit =  YP_001686804.1**
+
+# Dev
+## Needed columns
+    Description	
+    Query Cover > 70%
+    &
+    E value < e^-50
+    Per. Ident
+    Accession
+
+## Forward blast the protein, limited to records that include only Bacteria (taxid:2)
+    - take the top hit (Accession #)
+    - save the top 10 (Accession #) to file
+        use the above conditions to filter dwon
+## Reverse blast the top hit, this time limited to records that include only Viruses (taxid:10239)
+    - take the top hit (Accession #)
+        Compare this value (Accession #) with the top hit in the forward blast
+            If they match then flag it as a "match"
+    - save the top 10 (Accession #) to file
+
+## TODO
+    - Create sub routines
+        - for check status
+        - for submit requst
+        - Get the result
+        - Parse the items
+        - Save the top 10 items
+        - Revers the top hit
+        - loop 
+    - Learn and use JSON / XML parser
+   
 ```
 ENTREZ_QUERY=txid2[ORGN]
 https://blast.ncbi.nlm.nih.gov/Blast.cgi?QUERY=YP_009160331.1&DATABASE=nr&PROGRAM=blastp&ENTREZ_QUERY=txid2[ORGN]&CMD=Put&FORMAT_TYPE=XML
