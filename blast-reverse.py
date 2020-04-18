@@ -1,11 +1,11 @@
 import requests
 import re
 import time
-import csv
+import json
 
 # Initialize query parameters
 # Check the parameter list at https://ncbi.github.io/blast-cloud/dev/api.html
-Protein = 'WP_084828638.1'
+Protein = 'NBU93496'
 Domain_Filter = 'ENTREZ_QUERY=txid10239[ORGN]'  # Limit to Viruses
 # build the URL Submit request
 url_endpoint = 'https://blast.ncbi.nlm.nih.gov/Blast.cgi?'
@@ -18,7 +18,7 @@ def extract_attribute(data, attribute):
     # print("Looking for the attribute:", attribute)
     for line in data.splitlines():
         if attribute in line:
-            print(line)
+            #print(line)
             attribute_value = re.sub(attribute, "", line)
             attribute_value = re.sub(r"\s", "", attribute_value)
             return attribute_value
@@ -31,7 +31,7 @@ def extract_attribute(data, attribute):
 #
 #
 def check_request_status(requestid):
-    print("Checking status of RID:", requestid)
+    #print("Checking status of RID:", requestid)
     url_request = 'CMD=Get&FORMAT_OBJECT=SearchInfo&RID=' + rid
     url_submit = url_endpoint + url_request
     # Submit the request to the BLAST site
@@ -58,7 +58,6 @@ def check_request_status(requestid):
 
 url_request = 'QUERY=' + Protein + '&DATABASE=nr&PROGRAM=blastp&' + Domain_Filter + '&CMD=Put'
 url_submit = url_endpoint + url_request
-print(url_submit)
 
 # Submit the request to the BLAST site
 Submit_Request = requests.put(url_submit)
@@ -69,15 +68,17 @@ f.write(Submit_Request.text)
 f.close()
 
 rid = extract_attribute(Submit_Request.text, "RID = ")
-print(rid)
+#print(rid)
 rtoe = extract_attribute(Submit_Request.text, "RTOE = ")
-print(rtoe)
+#print(rtoe)
 
 ###############
 # STEP 2
 ###############
 # https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Get&FORMAT_OBJECT=SearchInfo&RID=3BZF6X4G016
 
+print("Check the status via web-browser:")
+print("https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Get&FORMAT_OBJECT=SearchInfo&RID="+rid)
 while True:
     Status, Hits = check_request_status(rid)
     if Status == 'READY' and Hits == 'yes':
@@ -97,24 +98,20 @@ while True:
 # STEP 3
 ###############
 
-# Download the JSON or CSV File
+# Download the file
+# JSON File *
+# "https://blast.ncbi.nlm.nih.gov/Blast.cgi?RESULTS_FILE=on&FORMAT_TYPE=JSON2_S&FORMAT_OBJECT=Alignment&CMD=Get&RID=3BV6047Z014"
+# TXT File
+# https://blast.ncbi.nlm.nih.gov/Blast.cgi?RESULTS_FILE=on&RID=9HDFGPKV016&FORMAT_TYPE=Text&FORMAT_OBJECT=Alignment&DESCRIPTIONS=100&ALIGNMENTS=100&CMD=Get&DOWNLOAD_TEMPL=Results_All&ADV_VIEW=on
 # CSV File
 # https://blast.ncbi.nlm.nih.gov/Blast.cgi?RESULTS_FILE=on&FORMAT_TYPE=CSV&FORMAT_OBJECT=Alignment&DESCRIPTIONS=10&ALIGNMENT_VIEW=Tabular&CMD=Get&RID=3BV6047Z014
-# JSON File
-# "https://blast.ncbi.nlm.nih.gov/Blast.cgi?RESULTS_FILE=on&FORMAT_TYPE=JSON2_S&FORMAT_OBJECT=Alignment&CMD=Get&RID=3BV6047Z014"
 # print(Submit_JSONRequest)
-# url_request = 'RESULTS_FILE=on&FORMAT_TYPE=JSON2_S&FORMAT_OBJECT=Alignment&CMD=Get&RID=' + rid
-url_request = 'RESULTS_FILE=on&FORMAT_TYPE=CSV&FORMAT_OBJECT=Alignment&DESCRIPTIONS=10&ALIGNMENT_VIEW=Tabular&CMD=Get' \
-              '&RID=' + rid
-
-csv_header_row = 'query_id,subject_id,per_identity,alignment_length,mismatches,gap_opens,q_start,q_end,s._start,' \
-                 's._end,evalue,bit_score,sequence\n'
+url_request = 'RESULTS_FILE=on&FORMAT_TYPE=JSON2_S&FORMAT_OBJECT=Alignment&CMD=Get&RID=' + rid
+csv_header_row = 'query_id,scientific_name,query_cover_per,evalue,per_identity,accession_id'
 Submit_JSONRequest = requests.get(url_endpoint + url_request)
-# save_file_handle = open("results.json", "w")
-save_file_handle = open("results-reverse.csv", "w")
-save_file_handle.write(csv_header_row)
-save_file_handle.write(Submit_JSONRequest.text)
-save_file_handle.close()
+save_json_file_handle = open("tmp/results-reverse.json", "w")
+save_json_file_handle.write(Submit_JSONRequest.text)
+save_json_file_handle.close()
 
 print("Downloaded the file")
 
@@ -123,21 +120,47 @@ print("Downloaded the file")
 ##
 # Parse the csv file and write the top 10 results
 
-csv_file = open("results-reverse.csv", "r")
-dict_reader = csv.DictReader(csv_file)
-i = 0
-print("########################################")
-print("Percentage \tSubject ID\tE_Value")
-print("########################################")
-for row in dict_reader:
-    if float(row['per_identity']) > 70:
-        # Save the top hit
-        if i == 1:
-            print(row['per_identity'], "\t", row['subject_id'], "\t", row['evalue'], "\t*")
-            i += 1
-            topHit = row['subject_id']
-        else:
-            i += 1
-            print(row['per_identity'], "\t", row['subject_id'], "\t", row['evalue'])
-print("########################################")
-print("The top hit = ", topHit)
+output_csv_file = open("tmp/results-reverse.csv", "w")
+csv_header_row = 'query_id,scientific_name,query_cover_per,evalue,per_identity,accession_id\n'
+output_csv_file.write(csv_header_row)
+
+with open("tmp/results-reverse.json", "r") as read_file:
+    data = json.load(read_file)
+
+# Extract the query details
+query_id = data['BlastOutput2'][0]['report']['results']['search']['query_id']
+query_len = data['BlastOutput2'][0]['report']['results']['search']['query_len']
+
+print("###################################################")
+print("Query Cover %\tE_Value\tAccession Id\tSubject Name")
+print("###################################################")
+
+# We need only the top 10 hits
+hit_count = 0
+for hit in data['BlastOutput2'][0]['report']['results']['search']['hits']:
+    # Extract the hits
+    scientific_name = hit['description'][0]['sciname']
+    accession_id = hit['description'][0]['accession']
+    hsps_align_len = hit['hsps'][0]['align_len']
+    hsps_identity = hit['hsps'][0]['identity']
+    hsps_query_from = hit['hsps'][0]['query_from']
+    hsps_query_to = hit['hsps'][0]['query_to']
+    evalue = hit['hsps'][0]['evalue']
+
+    # https://codereview.stackexchange.com/questions/39879/calculate-query-coverage-from-blast-output)
+    query_cover_per = ((hsps_query_to - hsps_query_from) / query_len) * 100
+
+    per_identity = (hsps_identity / hsps_align_len) * 100
+    if (query_cover_per > 70) and (hit_count < 10):
+        if hit_count == 0:
+            topHit = accession_id
+            topHit_scientific_name = scientific_name
+        hit_count += 1
+        print(round(query_cover_per, 2), evalue, accession_id, scientific_name, sep='\t')
+        row = ','.join(
+            (query_id, scientific_name, str(query_cover_per), str(evalue), str(per_identity), accession_id)) + '\n'
+        output_csv_file.write(row)
+print("###################################################")
+print("##### TOP HIT = " + topHit, topHit_scientific_name)
+print("###################################################")
+output_csv_file.close()
